@@ -27,6 +27,7 @@ class Paths(BaseModel):
     data_processed: str
     data_reference: str
     artifacts: str
+    serving: str
 
 
 class DataCfg(BaseModel):
@@ -61,6 +62,7 @@ class ServingCfg(BaseModel):
     port: int
     model_refresh_seconds: int
     model_uri: str
+    request_db: str
 
 
 class MLflowCfg(BaseModel):
@@ -132,6 +134,14 @@ class Config(BaseSettings):
     @property
     def artifacts_dir(self) -> Path:
         return self.abspath(self.paths.artifacts)
+
+    @property
+    def serving_dir(self) -> Path:
+        return self.abspath(self.paths.serving)
+
+    @property
+    def request_db_path(self) -> Path:
+        return self.abspath(self.serving.request_db)
 
     def resolved_tracking_uri(self) -> str:
         """Resolve a ``sqlite:///<relative>`` tracking URI to an absolute path so the

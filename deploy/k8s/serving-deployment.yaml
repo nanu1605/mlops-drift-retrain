@@ -1,0 +1,38 @@
+# DELIVERABLE, NOT DEPLOYED here (no cluster in this environment — spec §0.3).
+# Shows how the serving process would run as a K8s Deployment with health probes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: intrusion-serving
+  labels: { app: intrusion-serving }
+spec:
+  replicas: 1            # single replica: model hot-reload + SQLite store assume one writer
+  selector:
+    matchLabels: { app: intrusion-serving }
+  template:
+    metadata:
+      labels: { app: intrusion-serving }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: serving
+          image: intrusion-serving:latest   # built from deploy/docker/serving.Dockerfile
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "sqlite:////data/mlflow.db"   # a real cluster would use a DB service
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits: { cpu: "1", memory: "1Gi" }

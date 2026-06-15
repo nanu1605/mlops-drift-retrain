@@ -10,6 +10,35 @@ All notable changes per phase. Conventional Commits.
   delayed labels) and `ingest.py` (`make data`): CICIDS2017 if present, else synthetic.
 - test: config-loads / missing-key, synthetic determinism + drift-shape, smoke.
 
+## Phase 3 — Serving + operational monitoring (local)
+- feat(serving): `model_loader.py` `ChampionLoader` — resolves `models:/<name>@champion`, loads
+  it as a sklearn Pipeline (`predict` + `predict_proba`), thread-safe hot-swap. Two-pronged
+  reload: `POST /reload` (Phase 5 hook) + a daemon thread re-resolving every
+  `serving.model_refresh_seconds`; swaps only when the alias version changes.
+- feat(serving): `app.py` FastAPI via `create_app(cfg, tracking_uri, refresh)` factory —
+  `POST /predict` (raw `f*` batch → pandera-validate `require_label=False` → predict → log),
+  `GET /health` (503 if no champion), `GET /metrics` (Prometheus), `POST /reload`. Prometheus
+  counters: `predictions_total{predicted_class}`, `predict_latency_seconds`,
+  `requests_total{endpoint,code}`, `prediction_errors_total`, `model_version` gauge, `model` Info.
+- feat(serving): `logging_store.py` `RequestStore` — SQLite (WAL) append of each prediction
+  (`ts, model_version, f0..f11, pred, proba`); `read_window(seconds=…)` for Phase 4. Explicit
+  f-cols so the monitor reads a tidy frame.
+- feat(serving): `schemas.py` (pydantic request/response), `smoke.py` (`make smoke`: valid 200 +
+  schema, bad input 4xx, `/metrics` check).
+- config: `paths.serving` + `serving.request_db`; `Config.serving_dir` / `request_db_path`.
+- make: `up` → uvicorn serving (no MLflow server — reads sqlite store directly); `smoke` →
+  smoke client. `.gitignore` += `/data/serving/`.
+- deliverables (written, NOT deployed — local mode, spec §0.3): `deploy/docker/serving.Dockerfile`,
+  `deploy/k8s/serving-{deployment,service}.yaml`, `deploy/prometheus/scrape.yml`,
+  `deploy/grafana/serving_dashboard.json`.
+- test: `test_serving.py` (health/predict/reload/metrics/4xx via TestClient on a tmp store,
+  `refresh=False`), `test_logging_store.py` (append + windowed read). 36 tests total.
+
+Bad input → 4xx (missing feature / non-finite → 400; empty batch → 422), never 500. Champion
+loaded as a self-contained sklearn Pipeline on raw `f*` cols. `model_version` stays the champion
+alias's version (promotion is Phase 5). Verified live: `make up` + `make smoke` → valid 200,
+`/metrics` counters present, `/reload` 200, request DB written under `data/serving/`.
+
 ## Phase 2 — Training pipeline + MLflow tracking & registry
 - feat(training): `train.py` (`make train`) — ingest→validate→time-aware split→fit sklearn
   Pipeline(median-impute→RandomForest)→evaluate; logs params/metrics/seed/git-SHA/DVC-md5 +

@@ -6,6 +6,7 @@ paths:
   data_processed: data/processed
   data_reference: data/reference
   artifacts: artifacts
+  serving: data/serving      # serving runtime state (SQLite request log)
 
 data:
   # Synthetic generator parameters (used when real CICIDS2017 CSVs are absent).
@@ -40,8 +41,9 @@ monitoring:
 serving:
   host: 0.0.0.0
   port: 8000
-  model_refresh_seconds: 30
+  model_refresh_seconds: 30                      # bg poll interval for @champion hot-reload
   model_uri: "models:/intrusion-classifier@champion"
+  request_db: data/serving/requests.db           # SQLite append log of predictions (Phase 4 reads)
 
 mlflow:
   # DB-backed store required for the Model Registry (aliases). sqlite file = hermetic,

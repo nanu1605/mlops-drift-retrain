@@ -47,14 +47,17 @@ train: ## Run training pipeline -> MLflow run + registered @challenger (+@champi
 repro: ## dvc repro the data->train pipeline (reproducible; metrics in metrics/)
 	$(RUN) dvc repro
 
-up: ## Local: MLflow + uvicorn serving (Phase 3)
-	@echo "Phase 3 target — implemented in Phase 3."
+HOST ?= 127.0.0.1
+PORT ?= 8000
+
+up: ## Local: uvicorn serving the @champion (reads sqlite store directly; no MLflow server)
+	$(RUN) uvicorn mlops_drift.serving.app:app --host $(HOST) --port $(PORT)
 
 up-compose: ## docker-compose fallback
 	@echo "No Docker in this environment — using pure-local mode. Use 'make up'."
 
-smoke: ## Post a sample request to /predict and assert valid response (Phase 3)
-	@echo "Phase 3 target — implemented in Phase 3."
+smoke: ## Post a sample request to /predict and assert valid response (serving must be up)
+	$(PY) -m mlops_drift.serving.smoke
 
 monitor: ## Start monitoring service (drift + realized performance) (Phase 4)
 	@echo "Phase 4 target — implemented in Phase 4."

@@ -1,0 +1,11 @@
+# DELIVERABLE, NOT RUN here (no Prometheus server in this environment — spec §0.3).
+# Scrape config for the serving /metrics endpoint. In local mode, /metrics is still live
+# (curl it); this file documents how a Prometheus server would collect it.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: intrusion-serving
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["127.0.0.1:8000"]   # local mode; in-cluster use the Service DNS name
