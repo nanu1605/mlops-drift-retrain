@@ -1,0 +1,15 @@
+# Drift + promotion thresholds. Tuned/justified in experiments/drift_experiment.md.
+drift:
+  # Fraction of features flagged as drifted (Evidently dataset_drift share)
+  # above which we declare "drift detected".
+  dataset_drift_share: 0.5
+  # Per-feature p-value/stat threshold passed to Evidently (lower = stricter).
+  feature_stattest_threshold: 0.05
+
+promotion:
+  # Challenger promoted iff (challenger_f1 - champion_f1) >= margin. Never on tie.
+  f1_margin: 0.01
+
+validation:
+  # CI model-validation gate: a candidate below this F1 floor is blocked.
+  f1_floor: 0.70

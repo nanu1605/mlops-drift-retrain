@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Data (DVC-tracked). DVC writes per-dir .gitignore files for the actual data blobs;
+# the .dvc pointer files and .gitkeep are committed. Do NOT blanket-ignore here.
+/data/processed/*
+/data/reference/*
+!/data/**/.gitkeep
+!/data/**/*.dvc
+
+# MLflow + artifacts
+/mlruns/
+/mlartifacts/
+/artifacts/
+mlflow.db
+
+# DVC
+/.dvc/cache
+/.dvc/tmp
+/dvc_remote/
+
+# OS / editor
+.DS_Store
+*.swp
+
+# Stray agent skill cache (not part of project)
+.agents/
+skills-lock.json

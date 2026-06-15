@@ -1,0 +1,52 @@
+# Primary configuration. No hardcoded paths/thresholds in logic — everything loads here.
+seed: 42
+
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  data_reference: data/reference
+  artifacts: artifacts
+
+data:
+  # Synthetic generator parameters (used when real CICIDS2017 CSVs are absent).
+  n_reference: 12000      # rows in the reference (earlier) period
+  n_drift: 8000           # rows in the drift (later) period
+  n_features: 12          # numeric feature count
+  attack_rate: 0.18       # base positive (attack) prevalence
+  drift_attack_rate: 0.30 # elevated attack prevalence in drift period
+  # Fraction of features whose mean/correlation shifts in the drift period.
+  drift_feature_frac: 0.4
+  label_delay_steps: 200  # rows between a prediction and its label being revealed
+  target_col: label
+  time_col: t             # integer time axis (row order across periods)
+
+model:
+  name: intrusion-classifier        # MLflow registered model name
+  family: random_forest             # one family only (see scope guardrails)
+  params:
+    n_estimators: 200
+    max_depth: 16
+    min_samples_leaf: 2
+    n_jobs: -1
+
+split:
+  # Time-aware: train on earliest fraction, evaluate on the rest. Never shuffle across.
+  train_frac: 0.7
+
+monitoring:
+  window_size: 1000       # rows per rolling window
+  reference_sample: 4000  # rows persisted as the Evidently reference set
+
+serving:
+  host: 0.0.0.0
+  port: 8000
+  model_refresh_seconds: 30
+  model_uri: "models:/intrusion-classifier@champion"
+
+mlflow:
+  tracking_uri: "http://127.0.0.1:5000"
+  experiment: intrusion-drift
+
+controller:
+  poll_seconds: 5
+  cooldown_seconds: 60    # debounce: no re-trigger within this window
