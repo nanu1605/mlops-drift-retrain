@@ -6,7 +6,7 @@ RUN := $(UV) run
 PY := $(RUN) python
 
 .DEFAULT_GOAL := help
-.PHONY: help setup lint fmt test data mlflow train up up-compose smoke \
+.PHONY: help setup lint fmt test data baseline mlflow train up up-compose smoke \
         monitor loop replay experiment down clean
 
 help: ## Show this help
@@ -33,6 +33,9 @@ data: ## Fetch/generate + DVC-track the dataset
 	$(PY) -m mlops_drift.data.ingest
 	@$(RUN) dvc add data/raw/dataset.parquet 2>/dev/null && echo "dvc-tracked" || \
 	  echo "dvc add skipped (dvc not initialized?)"
+
+baseline: ## Train+evaluate Phase-1 baseline -> artifacts/baseline_metrics.json
+	$(PY) -m mlops_drift.training.baseline
 
 mlflow: ## Start local MLflow tracking server (Phase 2)
 	@echo "Phase 2 target — implemented in Phase 2."

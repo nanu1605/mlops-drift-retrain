@@ -73,6 +73,15 @@ def ingest(cfg: Config | None = None) -> tuple[Path, str]:
         df = synthetic.generate(cfg)
         source = "synthetic"
 
+    # Validate the feature frame before persisting — fail loud on schema break.
+    from mlops_drift.data import features as _feat
+    from mlops_drift.data import validation as _val
+
+    feature_cols = _feat.select_feature_cols(
+        df, target_col=cfg.data.target_col, time_col=cfg.data.time_col
+    )
+    _val.validate(df, feature_cols, require_label=True)
+
     out_path = raw_dir / CANONICAL
     write_parquet(df, out_path)
     log.info("ingest.written", path=str(out_path), rows=len(df), cols=df.shape[1])
