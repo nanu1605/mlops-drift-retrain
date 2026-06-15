@@ -1,0 +1,30 @@
+# CI — DELIVERABLE: runs on GitHub, not in this local environment (no remote here, spec §0.3).
+# Lint + tests + the model-validation gate (F1 floor). A sub-floor champion blocks the build.
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+      - name: Install deps
+        run: uv sync --extra dev
+      - name: Lint
+        run: |
+          uv run ruff check src tests pipelines
+          uv run ruff format --check src tests pipelines
+      - name: Tests
+        run: uv run pytest
+      - name: Model-validation gate (F1 floor on @champion)
+        run: |
+          uv run python -m mlops_drift.training.train
+          uv run python -m mlops_drift.promotion.validate

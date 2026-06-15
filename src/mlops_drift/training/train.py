@@ -71,7 +71,18 @@ def _eval_plots(pipe: Pipeline, x_test, y_test, outdir) -> list:
     return paths
 
 
-def run_training(cfg: Config | None = None, tracking_uri: str | None = None) -> dict:
+def run_training(
+    cfg: Config | None = None,
+    tracking_uri: str | None = None,
+    periods: tuple[str, ...] = ("reference",),
+) -> dict:
+    """Train, evaluate, log, and register a model version.
+
+    ``periods`` selects which time periods feed the fit. Default ``("reference",)`` is the
+    honest baseline (Phase 2). The Phase 5 controller retrains with ``("reference","drift")``
+    so the challenger can learn the drifted attack sub-population; the trailing
+    ``label_delay_steps`` drift rows are dropped (their labels have not "arrived" yet).
+    """
     cfg = cfg or get_config()
     seed = set_seed(cfg.seed)
     target, time_col = cfg.data.target_col, cfg.data.time_col
@@ -83,7 +94,11 @@ def run_training(cfg: Config | None = None, tracking_uri: str | None = None) -> 
     feature_cols = feat.select_feature_cols(df, target_col=target, time_col=time_col)
     validation.validate(df, feature_cols, require_label=True)
 
-    train, test = time_aware_split(df, cfg.split.train_frac, time_col=time_col, period="reference")
+    fit_df = df[df["period"].isin(periods)].sort_values(time_col)
+    if "drift" in periods:
+        delay = cfg.data.label_delay_steps  # honest delayed labels: drop not-yet-arrived tail
+        fit_df = fit_df.iloc[: max(2, len(fit_df) - delay)]
+    train, test = time_aware_split(fit_df, cfg.split.train_frac, time_col=time_col)
     drift = df[df["period"] == "drift"]
 
     x_train, y_train = train[feature_cols], train[target].to_numpy()
@@ -171,6 +186,7 @@ def run_training(cfg: Config | None = None, tracking_uri: str | None = None) -> 
         "n_train": int(len(train)),
         "n_test": int(len(test)),
         "reference_window_rows": int(len(reference)),
+        "periods": list(periods),
     }
 
     # DVC metrics file (committed; powers `dvc repro` / `dvc metrics show`)

@@ -7,7 +7,7 @@ PY := $(RUN) python
 
 .DEFAULT_GOAL := help
 .PHONY: help setup lint fmt test data baseline mlflow train repro up up-compose smoke \
-        monitor loop replay experiment down clean
+        monitor loop validate replay experiment down clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -62,8 +62,11 @@ smoke: ## Post a sample request to /predict and assert valid response (serving m
 monitor: ## One-shot: drift + realized perf over current window -> JSON + history + prom textfile
 	$(PY) -m mlops_drift.monitoring.monitor
 
-loop: ## Start controller: drift -> retrain -> validate -> promote -> reload (Phase 5)
-	@echo "Phase 5 target — implemented in Phase 5."
+loop: ## Start controller: drift -> retrain -> validate -> promote -> reload
+	$(PY) -m mlops_drift.controller.loop
+
+validate: ## Model-validation gate: in-dist F1 floor on @champion (exits nonzero if below)
+	$(PY) -m mlops_drift.promotion.validate
 
 replay: ## Stream later-period traffic into /predict (Phase 6)
 	@echo "Phase 6 target — implemented in Phase 6."

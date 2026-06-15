@@ -60,3 +60,4 @@ mlflow:
 controller:
   poll_seconds: 5
   cooldown_seconds: 60    # debounce: no re-trigger within this window
+  decisions: metrics/controller_log.jsonl   # structured retrain/promote/reject decision trail

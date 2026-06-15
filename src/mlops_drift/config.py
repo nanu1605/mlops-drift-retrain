@@ -79,6 +79,7 @@ class MLflowCfg(BaseModel):
 class ControllerCfg(BaseModel):
     poll_seconds: int
     cooldown_seconds: int
+    decisions: str
 
 
 class DriftThresholds(BaseModel):
@@ -152,6 +153,15 @@ class Config(BaseSettings):
     @property
     def prom_textfile_path(self) -> Path:
         return self.abspath(self.monitoring.prom_textfile)
+
+    @property
+    def controller_log_path(self) -> Path:
+        return self.abspath(self.controller.decisions)
+
+    @property
+    def serving_url(self) -> str:
+        host = "127.0.0.1" if self.serving.host == "0.0.0.0" else self.serving.host
+        return f"http://{host}:{self.serving.port}"
 
     def resolved_tracking_uri(self) -> str:
         """Resolve a ``sqlite:///<relative>`` tracking URI to an absolute path so the

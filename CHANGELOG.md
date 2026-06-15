@@ -10,6 +10,34 @@ All notable changes per phase. Conventional Commits.
   delayed labels) and `ingest.py` (`make data`): CICIDS2017 if present, else synthetic.
 - test: config-loads / missing-key, synthetic determinism + drift-shape, smoke.
 
+## Phase 5 — Close the loop (controller + champion/challenger + CI) — centerpiece
+- feat(promotion): `champion_challenger.py` — `evaluate_pair` scores `@champion` + `@challenger`
+  on the drift-period holdout; `decide_promotion` gate = `chal_f1 - champ_f1 >= promotion.f1_margin`
+  **and** `chal_f1 >= validation.f1_floor` (never tie/regression/below-floor; same-version guard);
+  `run_promotion` moves the `@champion` alias (alias-only, old version retained/rollback-able).
+- feat(promotion): `validate.py` — model-validation gate: in-distribution (reference-test) F1 of
+  the live champion `>= f1_floor`; `make validate` / CI exit nonzero below floor.
+- feat(controller): `controller/loop.py` — `tick` = evaluate_once (drift signal) → if drift +
+  cooled down → `run_training(periods=("reference","drift"))` (in-process retrain) → `run_promotion`
+  → on promote `POST /reload`; debounced by `cooldown_seconds`; appends a decision trail. `run_loop`
+  drives `tick` every `poll_seconds`. `make loop`.
+- feat(training): `run_training(..., periods=("reference",))` — additive; controller passes
+  `("reference","drift")` so the challenger learns the drift sub-population (drops the trailing
+  `label_delay_steps` as not-yet-arrived). Baseline `make train` unchanged.
+- ci: `.github/workflows/{ci,retrain}.yml` — deliverables (no remote here): ci = ruff+pytest+
+  validate gate; retrain = workflow_dispatch+cron → train+promotion. Not executed locally.
+- config: `controller.decisions` log; `Config.{controller_log_path,serving_url}`. thresholds
+  `validation.f1_floor` 0.70→**0.50** (synthetic RF in-dist F1 ~0.576; 0.70 unreachable).
+- test: `test_promotion.py` (strong promoted / weak rejected / gate rules), `test_controller.py`
+  (closed loop + debounce), `test_model_behavior.py` (validate gate + determinism + degenerate
+  input). 49 tests total.
+
+Verified live (no human in path): champion v1 drift F1 **0.278** → 300 drift requests → drift
+detected (share 1.0) → retrain → challenger drift F1 **0.832** → promote (delta 0.554 ≥ 0.01,
+≥ floor) → `/reload` → **live champion advances to the new version**; `make validate` PASS
+(in-dist F1 0.946). Promotion holdout overlaps retrain data → optimistic; the honest
+out-of-sample view is Phase 4's realized-perf series (noted as a limitation for the writeup).
+
 ## Phase 4 — Drift detection + realized performance
 - feat(monitoring): `drift.py` `detect_drift(reference, current, cfg) -> DriftResult` — Evidently
   `DataDriftPreset` over shared `f*` cols; extracts `share_of_drifted_columns` + per-feature

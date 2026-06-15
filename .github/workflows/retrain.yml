@@ -1,0 +1,23 @@
+# Scheduled / manual retrain — DELIVERABLE, not executed here (no remote/cluster, spec §0.3).
+# Stand-in for a K8s retrain CronJob: retrain, then run the champion/challenger promotion gate.
+name: retrain
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 3 * * *"   # daily 03:00 UTC
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - run: uv sync --extra dev
+      - name: Retrain (reference + drift) and run promotion gate
+        run: |
+          uv run python -c "from mlops_drift.config import get_config; from mlops_drift.training.train import run_training; run_training(get_config(), periods=('reference','drift'))"
+          uv run python -c "from mlops_drift.promotion.champion_challenger import run_promotion; print(run_promotion().to_dict())"
+      - name: Validate live champion
+        run: uv run python -m mlops_drift.promotion.validate
