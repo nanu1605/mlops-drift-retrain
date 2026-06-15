@@ -10,6 +10,28 @@ All notable changes per phase. Conventional Commits.
   delayed labels) and `ingest.py` (`make data`): CICIDS2017 if present, else synthetic.
 - test: config-loads / missing-key, synthetic determinism + drift-shape, smoke.
 
+## Phase 6 — Drift experiment + recovery plot + README + diagram — final
+- feat(experiments): `experiments/replay.py` `stream(url, df, cols, batch_size, on_batch, client)`
+  — POST the drift period to `/predict` in batches (injectable httpx client for ASGI tests);
+  `pipelines/replay.py` thin spec-path wrapper (`make replay`).
+- feat(experiments): `experiments/run.py` `run_experiment` — boots a real uvicorn serving
+  subprocess on a fresh reference-only champion, replays drift batches, drives the **real
+  controller** (retrain→promote→`/reload`) between batches, records per-batch realized F1, and
+  plots `_plot_recovery` → `docs/images/drift_recovery.png`. `make experiment`.
+- feat(experiments): `experiments/architecture.py` `render` → `docs/images/architecture.png`
+  (matplotlib boxes+arrows of the loop). `make diagram`.
+- docs: full `README.md` (what+why, architecture + money-shot plot, quickstart, how-it-works,
+  design decisions, tech stack, limitations/future); `docs/architecture.md` (component table +
+  loop); `experiments/drift_experiment.md` (hypothesis, setup, plot, thresholds, failure modes,
+  honest limitations incl. label latency + holdout overlap).
+- make: `replay`/`experiment`/`diagram` targets (were placeholders).
+- test: `test_replay.py` (stream over ASGI TestClient + on_batch hook), `test_experiment_plot.py`
+  (recovery + architecture PNGs render). 52 tests total.
+
+Verified live (`make experiment`): stale champion on drift realized F1 **≈ 0.27** → drift detected
+→ retrain → promote → `/reload` → recovered **≈ 0.78**; `drift_recovery.png` shows the dip +
+recovery with both markers. Project complete — all six phases done.
+
 ## Phase 5 — Close the loop (controller + champion/challenger + CI) — centerpiece
 - feat(promotion): `champion_challenger.py` — `evaluate_pair` scores `@champion` + `@challenger`
   on the drift-period holdout; `decide_promotion` gate = `chal_f1 - champ_f1 >= promotion.f1_margin`

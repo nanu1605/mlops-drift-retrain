@@ -7,7 +7,7 @@ PY := $(RUN) python
 
 .DEFAULT_GOAL := help
 .PHONY: help setup lint fmt test data baseline mlflow train repro up up-compose smoke \
-        monitor loop validate replay experiment down clean
+        monitor loop validate replay experiment diagram down clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -68,11 +68,14 @@ loop: ## Start controller: drift -> retrain -> validate -> promote -> reload
 validate: ## Model-validation gate: in-dist F1 floor on @champion (exits nonzero if below)
 	$(PY) -m mlops_drift.promotion.validate
 
-replay: ## Stream later-period traffic into /predict (Phase 6)
-	@echo "Phase 6 target — implemented in Phase 6."
+replay: ## Stream the drift period into /predict (serving must be up)
+	$(PY) -m mlops_drift.experiments.replay
 
-experiment: ## Run full drift experiment + regenerate drift_recovery.png (Phase 6)
-	@echo "Phase 6 target — implemented in Phase 6."
+experiment: ## Full drift experiment end-to-end -> docs/images/drift_recovery.png
+	$(PY) -m mlops_drift.experiments.run
+
+diagram: ## Render the architecture diagram -> docs/images/architecture.png
+	$(PY) -m mlops_drift.experiments.architecture
 
 down: ## Tear everything down
 	@pkill -f "mlflow server" 2>/dev/null || true
