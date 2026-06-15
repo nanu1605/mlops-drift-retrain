@@ -1,0 +1,25 @@
+stages:
+  ingest:
+    cmd: uv run python -m mlops_drift.data.ingest
+    deps:
+      - src/mlops_drift/data/ingest.py
+      - src/mlops_drift/data/synthetic.py
+    outs:
+      - data/raw/dataset.parquet
+  train:
+    cmd: uv run python -m mlops_drift.training.train
+    deps:
+      - data/raw/dataset.parquet
+      - src/mlops_drift/training/train.py
+      - src/mlops_drift/training/register.py
+      - src/mlops_drift/data/features.py
+      - src/mlops_drift/data/split.py
+    params:
+      - seed
+      - train_frac
+      - model.n_estimators
+      - model.max_depth
+      - model.min_samples_leaf
+    metrics:
+      - metrics/train_metrics.json:
+          cache: false

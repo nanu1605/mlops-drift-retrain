@@ -6,7 +6,7 @@ RUN := $(UV) run
 PY := $(RUN) python
 
 .DEFAULT_GOAL := help
-.PHONY: help setup lint fmt test data baseline mlflow train up up-compose smoke \
+.PHONY: help setup lint fmt test data baseline mlflow train repro up up-compose smoke \
         monitor loop replay experiment down clean
 
 help: ## Show this help
@@ -37,11 +37,15 @@ data: ## Fetch/generate + DVC-track the dataset
 baseline: ## Train+evaluate Phase-1 baseline -> artifacts/baseline_metrics.json
 	$(PY) -m mlops_drift.training.baseline
 
-mlflow: ## Start local MLflow tracking server (Phase 2)
-	@echo "Phase 2 target — implemented in Phase 2."
+mlflow: ## Start local MLflow UI server (sqlite backend) at ui_host:ui_port
+	$(RUN) mlflow server --backend-store-uri sqlite:///mlflow.db \
+	  --artifacts-destination ./mlartifacts --host 127.0.0.1 --port 5000
 
-train: ## Run training pipeline -> registered @challenger (Phase 2)
-	@echo "Phase 2 target — implemented in Phase 2."
+train: ## Run training pipeline -> MLflow run + registered @challenger (+@champion first)
+	$(PY) -m mlops_drift.training.train
+
+repro: ## dvc repro the data->train pipeline (reproducible; metrics in metrics/)
+	$(RUN) dvc repro
 
 up: ## Local: MLflow + uvicorn serving (Phase 3)
 	@echo "Phase 3 target — implemented in Phase 3."

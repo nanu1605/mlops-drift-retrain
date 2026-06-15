@@ -10,6 +10,24 @@ All notable changes per phase. Conventional Commits.
   delayed labels) and `ingest.py` (`make data`): CICIDS2017 if present, else synthetic.
 - test: config-loads / missing-key, synthetic determinism + drift-shape, smoke.
 
+## Phase 2 — Training pipeline + MLflow tracking & registry
+- feat(training): `train.py` (`make train`) — ingest→validate→time-aware split→fit sklearn
+  Pipeline(median-impute→RandomForest)→evaluate; logs params/metrics/seed/git-SHA/DVC-md5 +
+  artifacts (model w/ signature, feature_schema.json, **reference window** reference.parquet,
+  confusion_matrix + pr_curve plots).
+- feat(training): `register.py` — registers version, sets `@challenger` alias; first run also
+  `@champion`. Aliases (not stages). `mlflow_utils.py` — sqlite backend setup + `data_md5`.
+- feat(pipeline): `dvc.yaml` (ingest→train) + `params.yaml`; `metrics/train_metrics.json`
+  DVC-tracked. `make mlflow` (UI), `make repro`.
+- config: `mlflow` block → sqlite backend (`sqlite:///mlflow.db`), artifact_location,
+  registered_model, ui host/port; `Config.resolved_tracking_uri()`.
+- test: `test_training_pipeline.py` (run/params/metrics/tags/artifacts, alias resolution,
+  champion load+predict, determinism). 28 tests total.
+
+MLflow backend = **direct sqlite file** (hermetic, no server needed for train/register/tests);
+`make mlflow` serves the UI on the same db. Model = single sklearn Pipeline on raw `f*` cols.
+`dvc repro` reproduces data→train; second run up-to-date (deterministic).
+
 ## Phase 1 — Baseline model (exploration + honest metrics)
 - feat(data): `split.py` time-aware split (asserts no timestamp overlap), `features.py`
   deterministic median-impute pipeline (excludes `t`/`period`/`label`; joblib save/load),

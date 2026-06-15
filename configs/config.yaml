@@ -44,8 +44,14 @@ serving:
   model_uri: "models:/intrusion-classifier@champion"
 
 mlflow:
-  tracking_uri: "http://127.0.0.1:5000"
+  # DB-backed store required for the Model Registry (aliases). sqlite file = hermetic,
+  # no server needed for train/register/tests. `make mlflow` starts the UI on this same db.
+  tracking_uri: "sqlite:///mlflow.db"
+  artifact_location: "mlartifacts"
   experiment: intrusion-drift
+  registered_model: intrusion-classifier
+  ui_host: "127.0.0.1"
+  ui_port: 5000
 
 controller:
   poll_seconds: 5

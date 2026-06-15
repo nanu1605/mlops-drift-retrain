@@ -64,8 +64,12 @@ class ServingCfg(BaseModel):
 
 
 class MLflowCfg(BaseModel):
-    tracking_uri: str
+    tracking_uri: str  # sqlite:///<relative-or-abs>.db (DB backend required for registry)
+    artifact_location: str
     experiment: str
+    registered_model: str
+    ui_host: str
+    ui_port: int
 
 
 class ControllerCfg(BaseModel):
@@ -128,6 +132,17 @@ class Config(BaseSettings):
     @property
     def artifacts_dir(self) -> Path:
         return self.abspath(self.paths.artifacts)
+
+    def resolved_tracking_uri(self) -> str:
+        """Resolve a ``sqlite:///<relative>`` tracking URI to an absolute path so the
+        same DB is hit regardless of process cwd. Non-sqlite URIs pass through."""
+        uri = self.mlflow.tracking_uri
+        prefix = "sqlite:///"
+        if uri.startswith(prefix):
+            rel = uri[len(prefix) :]
+            if not rel.startswith("/"):
+                return f"{prefix}{self.abspath(rel)}"
+        return uri
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

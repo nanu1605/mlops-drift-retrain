@@ -1,0 +1,8 @@
+# DVC params (mirror of the tunables in configs/config.yaml — config remains the source of
+# truth at runtime; this file lets `dvc repro` track hyperparameter changes as a dependency).
+seed: 42
+train_frac: 0.7
+model:
+  n_estimators: 200
+  max_depth: 16
+  min_samples_leaf: 2

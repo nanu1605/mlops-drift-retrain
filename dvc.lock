@@ -1,0 +1,53 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: uv run python -m mlops_drift.data.ingest
+    deps:
+    - path: src/mlops_drift/data/ingest.py
+      hash: md5
+      md5: 9ad5f0353bea09361eda8e054fb6a36f
+      size: 3585
+    - path: src/mlops_drift/data/synthetic.py
+      hash: md5
+      md5: 60d197df3bbc44b4c915cb8ffeae3e80
+      size: 4790
+    outs:
+    - path: data/raw/dataset.parquet
+      hash: md5
+      md5: 86dff415c09ea8a62ebbad964268058e
+      size: 2499561
+  train:
+    cmd: uv run python -m mlops_drift.training.train
+    deps:
+    - path: data/raw/dataset.parquet
+      hash: md5
+      md5: 86dff415c09ea8a62ebbad964268058e
+      size: 2499561
+    - path: src/mlops_drift/data/features.py
+      hash: md5
+      md5: d05f309ab12f30cc069af4b0d60708da
+      size: 3473
+    - path: src/mlops_drift/data/split.py
+      hash: md5
+      md5: bfc45d8f417d48ee56a6e6d1850213fc
+      size: 1491
+    - path: src/mlops_drift/training/register.py
+      hash: md5
+      md5: ab3d7d9a92809999795b630c2e5d590c
+      size: 1648
+    - path: src/mlops_drift/training/train.py
+      hash: md5
+      md5: 0610ae4c64dea9b5d56ccf9eb1d89dfd
+      size: 7050
+    params:
+      params.yaml:
+        model.max_depth: 16
+        model.min_samples_leaf: 2
+        model.n_estimators: 200
+        seed: 42
+        train_frac: 0.7
+    outs:
+    - path: metrics/train_metrics.json
+      hash: md5
+      md5: 2441b6d25c1174f9b3c2ccdd5594443b
+      size: 301
