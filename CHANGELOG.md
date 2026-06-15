@@ -10,6 +10,34 @@ All notable changes per phase. Conventional Commits.
   delayed labels) and `ingest.py` (`make data`): CICIDS2017 if present, else synthetic.
 - test: config-loads / missing-key, synthetic determinism + drift-shape, smoke.
 
+## Phase 4 — Drift detection + realized performance
+- feat(monitoring): `drift.py` `detect_drift(reference, current, cfg) -> DriftResult` — Evidently
+  `DataDriftPreset` over shared `f*` cols; extracts `share_of_drifted_columns` + per-feature
+  `drift_by_columns` by **searching result keys** (version-robust). Boolean signal =
+  `share >= thresholds.drift.dataset_drift_share` (config-driven, not Evidently's default);
+  per-feature test threshold from `feature_stattest_threshold`. Label-free.
+- feat(monitoring): `performance.py` — realized perf under **delayed labels**, offline over the
+  drift stream. `realized_at_cursor` (label arrives iff `cursor_t - t >= label_delay_steps`),
+  `realized_series` (sliding F1/PR-AUC time series for Phase 6), `realized_latest`,
+  `champion_predict_fn` (reuses serving `ChampionLoader`). Reuses `evaluate_classification`.
+- feat(monitoring): `metrics_exporter.py` — **dedicated** `CollectorRegistry` (no collision with
+  serving's default registry); gauges `drift_detected/drift_share/drift_features_drifted/
+  realized_f1/realized_pr_auc/realized_labels_arrived/monitor_model_version`; `write_prom`
+  (Prometheus textfile-collector format).
+- feat(monitoring): `monitor.py` `evaluate_once(cfg, tracking_uri, store)` — drift over the latest
+  served window (skips <30 rows as noise) + realized perf; appends history JSONL, writes prom
+  textfile, returns dict. `make monitor` runs it once and prints JSON. Phase 5 controller polls
+  this for the (label-free) drift signal.
+- config: `monitoring.history` + `monitoring.prom_textfile`; `Config.history_path` /
+  `prom_textfile_path`. `.gitignore` += monitor runtime outputs.
+- test: `test_drift.py` (shifted→detected, in-dist→not), `test_performance.py` (delayed-label
+  gating + series), `test_monitor.py` (integration, tmp store). 41 tests total.
+
+Verified live: 300 drift-period requests → `drift_detected true`, `share 1.0`, all 12 features
+drifted; realized F1 **0.279** (the champion's drift-period degradation — the dip Phase 6
+recovers). Drift signal is label-free (triggers the controller); realized F1 (delayed labels) is
+for honest eval + the recovery plot. Evidently pinned `<0.5` — `as_dict()` parsed by result keys.
+
 ## Phase 3 — Serving + operational monitoring (local)
 - feat(serving): `model_loader.py` `ChampionLoader` — resolves `models:/<name>@champion`, loads
   it as a sklearn Pipeline (`predict` + `predict_proba`), thread-safe hot-swap. Two-pronged

@@ -59,8 +59,8 @@ up-compose: ## docker-compose fallback
 smoke: ## Post a sample request to /predict and assert valid response (serving must be up)
 	$(PY) -m mlops_drift.serving.smoke
 
-monitor: ## Start monitoring service (drift + realized performance) (Phase 4)
-	@echo "Phase 4 target — implemented in Phase 4."
+monitor: ## One-shot: drift + realized perf over current window -> JSON + history + prom textfile
+	$(PY) -m mlops_drift.monitoring.monitor
 
 loop: ## Start controller: drift -> retrain -> validate -> promote -> reload (Phase 5)
 	@echo "Phase 5 target — implemented in Phase 5."

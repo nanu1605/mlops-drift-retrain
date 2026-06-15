@@ -37,6 +37,8 @@ split:
 monitoring:
   window_size: 1000       # rows per rolling window
   reference_sample: 4000  # rows persisted as the Evidently reference set
+  history: metrics/monitor_history.jsonl   # append-only drift+realized-perf log (Phase 6 plot)
+  prom_textfile: metrics/monitor.prom      # Prometheus textfile-collector output
 
 serving:
   host: 0.0.0.0

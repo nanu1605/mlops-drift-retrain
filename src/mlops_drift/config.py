@@ -55,6 +55,8 @@ class SplitCfg(BaseModel):
 class MonitoringCfg(BaseModel):
     window_size: int
     reference_sample: int
+    history: str
+    prom_textfile: str
 
 
 class ServingCfg(BaseModel):
@@ -142,6 +144,14 @@ class Config(BaseSettings):
     @property
     def request_db_path(self) -> Path:
         return self.abspath(self.serving.request_db)
+
+    @property
+    def history_path(self) -> Path:
+        return self.abspath(self.monitoring.history)
+
+    @property
+    def prom_textfile_path(self) -> Path:
+        return self.abspath(self.monitoring.prom_textfile)
 
     def resolved_tracking_uri(self) -> str:
         """Resolve a ``sqlite:///<relative>`` tracking URI to an absolute path so the
