@@ -41,3 +41,5 @@ mlflow.db
 # Stray agent skill cache (not part of project)
 .agents/
 skills-lock.json
+
+.gitignore

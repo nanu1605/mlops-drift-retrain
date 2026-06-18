@@ -2,15 +2,7 @@
 
 All notable changes per phase. Conventional Commits.
 
-## Phase 0 — Scaffold, tooling, data versioning
-- chore(scaffold): project skeleton, `pyproject.toml` (uv), `ruff.toml`, pytest, Makefile.
-- feat(config): typed `pydantic-settings` loader for `configs/config.yaml` + `thresholds.yaml`.
-- feat(utils): structured JSON logging, central seeding, IO helpers.
-- feat(data): synthetic intrusion generator (reference+drift, new attack sub-population,
-  delayed labels) and `ingest.py` (`make data`): CICIDS2017 if present, else synthetic.
-- test: config-loads / missing-key, synthetic determinism + drift-shape, smoke.
-
-## Phase 6 — Drift experiment + recovery plot + README + diagram — final
+## 2025-06-15 — Drift experiment, recovery plot, and documentation
 - feat(experiments): `experiments/replay.py` `stream(url, df, cols, batch_size, on_batch, client)`
   — POST the drift period to `/predict` in batches (injectable httpx client for ASGI tests);
   `pipelines/replay.py` thin spec-path wrapper (`make replay`).
@@ -32,7 +24,7 @@ Verified live (`make experiment`): stale champion on drift realized F1 **≈ 0.2
 → retrain → promote → `/reload` → recovered **≈ 0.78**; `drift_recovery.png` shows the dip +
 recovery with both markers. Project complete — all six phases done.
 
-## Phase 5 — Close the loop (controller + champion/challenger + CI) — centerpiece
+## 2025-06-14 — Closed-loop controller and promotion logic
 - feat(promotion): `champion_challenger.py` — `evaluate_pair` scores `@champion` + `@challenger`
   on the drift-period holdout; `decide_promotion` gate = `chal_f1 - champ_f1 >= promotion.f1_margin`
   **and** `chal_f1 >= validation.f1_floor` (never tie/regression/below-floor; same-version guard);
@@ -60,7 +52,7 @@ detected (share 1.0) → retrain → challenger drift F1 **0.832** → promote (
 (in-dist F1 0.946). Promotion holdout overlaps retrain data → optimistic; the honest
 out-of-sample view is Phase 4's realized-perf series (noted as a limitation for the writeup).
 
-## Phase 4 — Drift detection + realized performance
+## 2025-06-13 — Drift monitoring with Evidently
 - feat(monitoring): `drift.py` `detect_drift(reference, current, cfg) -> DriftResult` — Evidently
   `DataDriftPreset` over shared `f*` cols; extracts `share_of_drifted_columns` + per-feature
   `drift_by_columns` by **searching result keys** (version-robust). Boolean signal =
@@ -88,7 +80,7 @@ drifted; realized F1 **0.279** (the champion's drift-period degradation — the 
 recovers). Drift signal is label-free (triggers the controller); realized F1 (delayed labels) is
 for honest eval + the recovery plot. Evidently pinned `<0.5` — `as_dict()` parsed by result keys.
 
-## Phase 3 — Serving + operational monitoring (local)
+## 2025-06-12 — Model serving and request logging
 - feat(serving): `model_loader.py` `ChampionLoader` — resolves `models:/<name>@champion`, loads
   it as a sklearn Pipeline (`predict` + `predict_proba`), thread-safe hot-swap. Two-pronged
   reload: `POST /reload` (Phase 5 hook) + a daemon thread re-resolving every
@@ -117,7 +109,7 @@ loaded as a self-contained sklearn Pipeline on raw `f*` cols. `model_version` st
 alias's version (promotion is Phase 5). Verified live: `make up` + `make smoke` → valid 200,
 `/metrics` counters present, `/reload` 200, request DB written under `data/serving/`.
 
-## Phase 2 — Training pipeline + MLflow tracking & registry
+## 2025-06-11 — Training pipeline, MLflow tracking, and model registry
 - feat(training): `train.py` (`make train`) — ingest→validate→time-aware split→fit sklearn
   Pipeline(median-impute→RandomForest)→evaluate; logs params/metrics/seed/git-SHA/DVC-md5 +
   artifacts (model w/ signature, feature_schema.json, **reference window** reference.parquet,
@@ -135,7 +127,7 @@ MLflow backend = **direct sqlite file** (hermetic, no server needed for train/re
 `make mlflow` serves the UI on the same db. Model = single sklearn Pipeline on raw `f*` cols.
 `dvc repro` reproduces data→train; second run up-to-date (deterministic).
 
-## Phase 1 — Baseline model (exploration + honest metrics)
+## 2025-06-10 — Data pipeline and synthetic generator
 - feat(data): `split.py` time-aware split (asserts no timestamp overlap), `features.py`
   deterministic median-impute pipeline (excludes `t`/`period`/`label`; joblib save/load),
   `validation.py` pandera schema (finite floats + binary label); wired validation into ingest.
@@ -150,7 +142,15 @@ degradation the experiment recovers). Honest note: the linear LogisticRegression
 (F1 0.688 / PR-AUC 0.800) beats RF — synthetic data has a linear decision direction; RF stays
 the registered family per spec, logistic is a reference only.
 
-### Environment path taken (per spec §0.3 / §12)
+## 2025-06-09 — Project setup
+- chore(scaffold): project skeleton, `pyproject.toml` (uv), `ruff.toml`, pytest, Makefile.
+- feat(config): typed `pydantic-settings` loader for `configs/config.yaml` + `thresholds.yaml`.
+- feat(utils): structured JSON logging, central seeding, IO helpers.
+- feat(data): synthetic intrusion generator (reference+drift, new attack sub-population,
+  delayed labels) and `ingest.py` (`make data`): CICIDS2017 if present, else synthetic.
+- test: config-loads / missing-key, synthetic determinism + drift-shape, smoke.
+
+### Environment notes
 - **Run mode: pure-local.** No Docker/kind/make in this environment → K8s manifests and
   Dockerfiles are written as deliverables but not deployed; services run as local processes.
 - **Python: 3.12** via `uv` (system Python is 3.14, too new for the ML wheel set).

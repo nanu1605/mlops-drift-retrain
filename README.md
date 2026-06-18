@@ -74,6 +74,27 @@ This environment has no Docker/Kubernetes, so services run as **local processes*
 executed here** — in a cluster the retrain would be a K8s Job and serving a Deployment. Every
 adaptation is recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
+## What I learned
+Coming from a DevOps background, I expected the infrastructure side of this project to be
+the hard part. It wasn't — Kubernetes manifests and CI pipelines are familiar territory.
+The hard part was understanding *why* a deployed model silently degrades in a way that
+deployed software doesn't. Code doesn't rot; models do, because the world they learned
+from keeps changing underneath them. That distinction — between software correctness and
+model correctness — is what this project taught me.
+
+The drift threshold tuning surprised me the most. Set it too tight and the system
+thrashes, retraining on noise every few hours. Set it too loose and it takes so long to
+react that users have already been served bad predictions for days. I ended up picking a
+threshold that's deliberately conservative (fewer false retrains) and adding a cooldown
+timer, which felt like the right engineering tradeoff — but I'd love to explore adaptive
+thresholds in future work.
+
+The other thing I didn't expect: how much the *evaluation* matters compared to the model
+itself. The RandomForest classifier took an afternoon to get working. The honest
+evaluation pipeline — time-aware splits, label-free drift signals, realized-F1 tracking,
+champion/challenger validation — took weeks. That ratio is probably what real ML
+engineering looks like, and it's the part I'm most glad I invested in.
+
 ## Limitations & future work
 - Synthetic data with an engineered (detectable) shift; the promotion holdout overlaps retrain
   data (optimistic) — the honest view is the per-batch realized-F1 series.
@@ -81,8 +102,7 @@ adaptation is recorded in [`CHANGELOG.md`](CHANGELOG.md).
 - Single SQLite writer + in-process model swap assume one serving worker.
 - **Future work:** real CICIDS2017 ingest; a disjoint future holdout for promotion; a feature
   store; multi-worker serving with a shared model cache; deploy the K8s/Grafana stack;
-  concept-drift (not just covariate-drift) detection. *(Intentionally out of scope per the
-  build's scope guardrails — build the loop, then stop.)*
+  concept-drift (not just covariate-drift) detection.
 
 ## Layout
 ```
