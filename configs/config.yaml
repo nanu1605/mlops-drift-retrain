@@ -61,3 +61,4 @@ controller:
   poll_seconds: 5
   cooldown_seconds: 60    # debounce: no re-trigger within this window
   decisions: metrics/controller_log.jsonl   # structured retrain/promote/reject decision trail
+  metrics_port: 9100      # HTTP port exposing the monitor registry for Prometheus to scrape

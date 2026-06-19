@@ -80,6 +80,7 @@ class ControllerCfg(BaseModel):
     poll_seconds: int
     cooldown_seconds: int
     decisions: str
+    metrics_port: int = 9100
 
 
 class DriftThresholds(BaseModel):

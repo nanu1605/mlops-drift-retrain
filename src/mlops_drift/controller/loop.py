@@ -18,6 +18,8 @@ import time
 from dataclasses import dataclass
 
 from mlops_drift.config import Config, get_config
+from mlops_drift.monitoring.metrics_exporter import REGISTRY as MONITOR_REGISTRY
+from mlops_drift.monitoring.metrics_exporter import update_gauges
 from mlops_drift.monitoring.monitor import evaluate_once
 from mlops_drift.promotion.champion_challenger import run_promotion
 from mlops_drift.serving.logging_store import RequestStore
@@ -67,6 +69,9 @@ def tick(
     now = time.time() if now is None else now
     state.ticks += 1
     mon = evaluate_once(cfg, tracking_uri=tracking_uri, store=store)
+    # Refresh the monitor's Prometheus gauges so the /metrics endpoint (served by run_loop)
+    # reflects the latest drift + realized-performance signal each poll.
+    update_gauges(mon)
     event: dict = {
         "ts": now,
         "drift_detected": mon["drift_detected"],
@@ -111,15 +116,35 @@ def _append_decision(cfg: Config, event: dict) -> None:
         fh.write(json.dumps(event, default=str) + "\n")
 
 
+def _serve_monitor_metrics(port: int) -> bool:
+    """Expose the monitor registry over HTTP so Prometheus can scrape drift/realized-F1.
+
+    Best-effort: a bind failure (port taken, restricted env) is logged but must not crash
+    the control loop — the drift→retrain→promote path matters more than the metrics bridge.
+    """
+    from prometheus_client import start_http_server
+
+    try:
+        start_http_server(port, registry=MONITOR_REGISTRY)
+        log.info("controller.metrics_serving", port=port)
+        return True
+    except OSError as exc:
+        log.warning("controller.metrics_bind_failed", port=port, error=str(exc))
+        return False
+
+
 def run_loop(
     cfg: Config | None = None,
     max_iters: int | None = None,
     sleep_fn=time.sleep,
     tracking_uri: str | None = None,
     reload_fn=None,
+    serve_metrics: bool = True,
 ) -> ControllerState:
     """Drive ``tick`` every ``poll_seconds`` until ``max_iters`` (None = forever)."""
     cfg = cfg or get_config()
+    if serve_metrics:
+        _serve_monitor_metrics(cfg.controller.metrics_port)
     state = ControllerState()
     i = 0
     while max_iters is None or i < max_iters:
