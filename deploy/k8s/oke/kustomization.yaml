@@ -1,0 +1,34 @@
+# OKE overlay: swaps the local image for your pushed arm64 registry image and sizes the PVC
+# for OCI block volume. Apply AFTER the kube-prometheus-stack helm release (ServiceMonitors +
+# grafana dashboard ConfigMaps are applied separately — they need the monitoring namespace + CRD).
+#
+# It references files in the parent dir, so render with the load restrictor off:
+#   kubectl kustomize --load-restrictor=LoadRestrictionsNone deploy/k8s/oke | kubectl apply -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../namespace.yaml
+  - ../pvc.yaml
+  - ../seed-job.yaml
+  - ../serving-service.yaml
+  - ../serving-deployment.yaml
+  - ../controller-deployment.yaml
+
+# Replace every `mlops-drift:local` reference (initContainers + main containers) at once.
+# EDIT newName to your registry path (Docker Hub: docker.io/<you>/mlops-drift).
+images:
+  - name: mlops-drift:local
+    newName: docker.io/CHANGE_ME/mlops-drift
+    newTag: arm64
+
+# OCI block volumes have a 50Gi minimum; pin the StorageClass too.
+patches:
+  - target: { kind: PersistentVolumeClaim, name: mlops-state }
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 50Gi
+      - op: add
+        path: /spec/storageClassName
+        value: oci-bv
