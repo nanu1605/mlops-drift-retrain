@@ -1,21 +1,38 @@
-# Serving image — DELIVERABLE, NOT BUILT/DEPLOYED in this environment (pure-local mode,
-# spec §0.3). Documents how serving would be containerized for a kind/K8s deployment.
+# One image, four entrypoints (train / serve / monitor / controller). The command is set
+# per workload by compose/k8s — this image ships a neutral default, not a hardcoded server.
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    # Keep the virtualenv outside /app so a state volume mounted at /app never shadows it.
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH=/opt/venv/bin:$PATH
+
+# make drives the documented command API; curl backs the compose healthcheck.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends make curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # uv for reproducible, locked installs.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
+# Stage 1: install only third-party deps (cached unless the lockfile changes).
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-install-project
 
+# Stage 2: add the source + README (hatchling needs it) and install the project itself.
 COPY src ./src
 COPY configs ./configs
+COPY Makefile README.md ./
+RUN uv sync --frozen --no-dev
 
-EXPOSE 8000
-# @champion is resolved from the MLflow registry the container is configured to reach
-# (MLFLOW_TRACKING_URI). In local mode this is the sqlite file + mlartifacts on the host.
-CMD ["uv", "run", "uvicorn", "mlops_drift.serving.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Drift/realized-F1 (controller :9100) and serving counters (:8000) are the two scrape targets.
+EXPOSE 8000 9100
+
+# Neutral default: print the targets. Real workloads override `command:`/`args:`:
+#   serve      -> make up HOST=0.0.0.0
+#   train/seed -> make train
+#   controller -> make loop
+#   monitor    -> make monitor
+CMD ["make", "help"]
