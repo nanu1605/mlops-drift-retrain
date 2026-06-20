@@ -1,0 +1,59 @@
+# Phase 1 stack: prove the drift -> retrain -> promote -> reload loop in containers before K8s.
+# One image, four entrypoints; one shared named volume holds all SQLite/MLflow/monitor state.
+name: mlops-drift
+
+services:
+  # one-shot: train + register the first @champion, then exit
+  seed:
+    image: mlops-drift:local
+    build:
+      context: ../..
+      dockerfile: deploy/docker/serving.Dockerfile
+    command: ["make", "train"]
+    volumes: ["state:/app"]
+    restart: "no"
+
+  serving:
+    image: mlops-drift:local
+    command: ["make", "up", "HOST=0.0.0.0"]   # bind all interfaces so the stack can reach it
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    ports: ["8000:8000"]
+    volumes: ["state:/app"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  controller:
+    image: mlops-drift:local
+    command: ["make", "loop"]
+    depends_on:
+      serving:
+        condition: service_healthy
+    environment:
+      SERVING_URL: "http://serving:8000"   # honored by Config.serving_url
+    ports: ["9100:9100"]
+    volumes: ["state:/app"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+    ports: ["3000:3000"]
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
+
+volumes:
+  state: {}

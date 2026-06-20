@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import socket
+import urllib.request
+
 import numpy as np
 from mlflow.tracking import MlflowClient
 
 from mlops_drift.config import load_config
-from mlops_drift.controller.loop import ControllerState, tick
+from mlops_drift.controller.loop import ControllerState, run_loop, tick
 from mlops_drift.data.ingest import ingest
 from mlops_drift.serving.logging_store import RequestStore
 from mlops_drift.training.train import run_training
@@ -96,3 +99,25 @@ def test_debounce_within_cooldown(tmp_path):
     assert event2["action"] == "cooldown_skip"
     assert state.retrains == 1  # only the first tick retrained
     assert len(reloads) == 1
+
+
+def _free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def test_run_loop_serves_monitor_metrics(tmp_path):
+    cfg = _cfg(tmp_path)
+    cfg.controller.metrics_port = _free_port()
+
+    # max_iters=0 → no tick (no champion needed); we only assert the metrics bridge binds.
+    run_loop(cfg, max_iters=0, sleep_fn=lambda _s: None, serve_metrics=True)
+
+    url = f"http://127.0.0.1:{cfg.controller.metrics_port}/metrics"
+    with urllib.request.urlopen(url, timeout=5) as resp:
+        body = resp.read().decode("utf-8")
+
+    # the monitor's dedicated gauges are exposed (not serving's counters)
+    assert "drift_detected" in body
+    assert "realized_f1" in body

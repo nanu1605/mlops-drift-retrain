@@ -1,0 +1,49 @@
+# kube-prometheus-stack values tuned for a single Always-Free OKE ARM node (4 OCPU / 24 GB).
+# Trims the chart to fit and exposes Grafana publicly via an OCI load balancer.
+
+# Pick up our ServiceMonitors (labeled release: kps) regardless of helm-managed selector.
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    retention: 6h                      # small disk on free tier
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits:   { cpu: "1",  memory: 1Gi }
+    storageSpec:                        # OCI block volume (min 50Gi enforced by OCI)
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources: { requests: { storage: 50Gi } }
+
+grafana:
+  # THE LIVE LINK: OCI provisions a public LB; EXTERNAL-IP of svc kps-grafana is your URL.
+  service:
+    type: LoadBalancer
+    port: 80
+    annotations:
+      # smallest free-tier flexible LB shape
+      oci.oraclecloud.com/load-balancer-shape: "flexible"
+      oci.oraclecloud.com/load-balancer-shape-flex-min: "10"
+      oci.oraclecloud.com/load-balancer-shape-flex-max: "10"
+  # No anonymous admin on a public endpoint — set a real password.
+  adminPassword: "CHANGE_ME_strong_password"
+  grafana.ini:
+    auth.anonymous:
+      enabled: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+# Trim heavy/irrelevant pieces for a single managed node.
+alertmanager:
+  enabled: false
+nodeExporter:
+  enabled: true
+kubeControllerManager: { enabled: false }   # hidden on managed control plane
+kubeScheduler:         { enabled: false }
+kubeEtcd:              { enabled: false }
+kubeProxy:             { enabled: false }

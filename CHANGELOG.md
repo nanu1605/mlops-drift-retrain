@@ -2,6 +2,26 @@
 
 All notable changes per phase. Conventional Commits.
 
+## 2026-06-20 — Containerized deployment: Docker Compose + minikube + Grafana
+- feat(controller): `run_loop` serves the monitor's dedicated registry over HTTP on
+  `controller.metrics_port` (default `9100`) via `start_http_server`, refreshing the gauges each
+  tick. Prometheus now scrapes drift/realized-F1 directly instead of a textfile. `write_prom` kept.
+- feat(config): `Config.serving_url` honors a `SERVING_URL` env override so the controller
+  container reaches serving by service name; new `controller.metrics_port`.
+- build(docker): one image, four entrypoints — neutral default command, `make`+`curl` installed,
+  two-stage `uv sync` (deps then project), venv at `/opt/venv` and a pristine `/opt/app` copy so a
+  PVC mounted at `/app` doesn't shadow the code. `.dockerignore` keeps local state out of context.
+- feat(deploy): `deploy/docker/` compose stack — seed → serving → controller → Prometheus →
+  Grafana, one shared `state` volume, provisioned datasource + dashboards.
+- feat(deploy): `deploy/k8s/` minikube manifests — namespace, RWO PVC, seed Job (populate-code
+  initContainer), serving (Recreate + wait-for-champion init + probes), controller Deployment +
+  Service `:9100`, ServiceMonitors, and Grafana dashboard ConfigMaps for kube-prometheus-stack.
+- feat(grafana): `drift_dashboard.json` — drift_detected/share/features, realized F1 + PR-AUC,
+  and the realized-F1-with-champion-version recovery panel.
+- docs: `docs/deploy.md` runbook (compose + minikube, verify + teardown); README Deploy section;
+  dropped the "not deployed (pure-local)" notes; carried the single-node honest constraints.
+- test: `run_loop` binds and serves the monitor registry; `serving_url` env override.
+
 ## 2025-06-15 — Drift experiment, recovery plot, and documentation
 - feat(experiments): `experiments/replay.py` `stream(url, df, cols, batch_size, on_batch, client)`
   — POST the drift period to `/predict` in batches (injectable httpx client for ASGI tests);

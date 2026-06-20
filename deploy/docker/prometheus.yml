@@ -1,0 +1,14 @@
+# Two scrape targets: serving counters (:8000) and the monitor's drift/realized-F1 gauges (:9100).
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: serving
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["serving:8000"]
+
+  - job_name: drift
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["controller:9100"]

@@ -1,0 +1,29 @@
+# One-shot: populate the empty PVC with the baked code, then train + register the first
+# @champion. Serving and controller block on the champion existing before they start.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-train
+  namespace: mlops
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        # Copy code into the empty volume (no-clobber so a re-run keeps existing state).
+        - name: populate-code
+          image: mlops-drift:local
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "cp -an /opt/app/. /app/ && echo populated"]
+          volumeMounts: [{ name: state, mountPath: /app }]
+      containers:
+        - name: train
+          image: mlops-drift:local
+          imagePullPolicy: IfNotPresent
+          command: ["make", "train"]
+          volumeMounts: [{ name: state, mountPath: /app }]
+      volumes:
+        - name: state
+          persistentVolumeClaim:
+            claimName: mlops-state

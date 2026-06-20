@@ -80,6 +80,7 @@ class ControllerCfg(BaseModel):
     poll_seconds: int
     cooldown_seconds: int
     decisions: str
+    metrics_port: int = 9100
 
 
 class DriftThresholds(BaseModel):
@@ -160,6 +161,11 @@ class Config(BaseSettings):
 
     @property
     def serving_url(self) -> str:
+        # In a container the controller reaches serving by service name, not localhost;
+        # SERVING_URL lets compose/k8s point it at the right host without a config rebuild.
+        override = os.environ.get("SERVING_URL")
+        if override:
+            return override.rstrip("/")
         host = "127.0.0.1" if self.serving.host == "0.0.0.0" else self.serving.host
         return f"http://{host}:{self.serving.port}"
 

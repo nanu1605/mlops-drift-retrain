@@ -1,0 +1,31 @@
+# Two scrape targets for the kube-prometheus-stack operator. The `release: kps` label is what
+# the operator's default serviceMonitorSelector matches — without it these are ignored.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: serving
+  namespace: mlops
+  labels: { release: kps }
+spec:
+  namespaceSelector: { matchNames: [mlops] }
+  selector:
+    matchLabels: { app: serving }
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: controller
+  namespace: mlops
+  labels: { release: kps }
+spec:
+  namespaceSelector: { matchNames: [mlops] }
+  selector:
+    matchLabels: { app: controller }
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s

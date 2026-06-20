@@ -1,0 +1,23 @@
+# Keep the build context lean — the image installs deps from uv.lock and copies only
+# src/, configs/, Makefile. Local state must never leak into image layers.
+.git
+.venv
+.pytest_cache
+.ruff_cache
+.dvc/cache
+__pycache__
+*.pyc
+
+# Local runtime state (rebuilt inside containers on the shared volume)
+mlflow.db
+mlruns/
+mlartifacts/
+data/serving/
+metrics/
+htmlcov/
+.coverage
+
+# Deploy + docs not needed at build time
+deploy/
+docs/
+tests/
