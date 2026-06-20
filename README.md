@@ -92,9 +92,9 @@ kubectl -n mlops wait --for=condition=complete job/seed-train --timeout=300s
 Both serving (`:8000`) and the controller's monitor registry (`:9100`) are scraped via
 ServiceMonitors; the serving + drift dashboards are provisioned as labeled ConfigMaps.
 
-**Live (public)** — for a shareable Grafana link, [`docs/deploy-oke.md`](docs/deploy-oke.md)
-runs the same stack on Oracle OKE's Always-Free ARM tier (`deploy/k8s/oke/` overlay +
-`deploy/helm/kps-values-oke.yaml`), exposing Grafana on a public load-balancer IP.
+**Live (public)** — for a shareable Grafana link: [`docs/deploy-vm.md`](docs/deploy-vm.md) runs
+the compose stack on a single Always-Free VM (simplest), or [`docs/deploy-oke.md`](docs/deploy-oke.md)
+runs it on Oracle OKE's managed ARM tier (`deploy/k8s/oke/` + `deploy/helm/kps-values-oke.yaml`).
 
 The drift dataset is **synthetic** (auto-swapped for real CICIDS2017 if CSVs are dropped in
 `data/raw/`). Any local-mode fallback is recorded in [`CHANGELOG.md`](CHANGELOG.md).
