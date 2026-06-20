@@ -1,0 +1,22 @@
+# Hardening overlay for running the compose stack on a public VM (e.g. an Oracle Always-Free
+# instance). Use with the base file:
+#   GRAFANA_ADMIN_PASSWORD=... docker compose -f docker-compose.yml -f docker-compose.public.yml up -d --build
+#
+# Only Grafana (:3000) should be reachable from the internet — open *only* port 3000 in both the
+# OCI security list AND the instance OS firewall. The other published ports stay closed.
+services:
+  grafana:
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"             # no anonymous access on a public endpoint
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}"
+    restart: unless-stopped
+
+  serving:
+    restart: unless-stopped
+
+  controller:
+    restart: unless-stopped
+
+  prometheus:
+    restart: unless-stopped
