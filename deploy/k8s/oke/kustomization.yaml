@@ -16,11 +16,12 @@ resources:
   - ../controller-deployment.yaml
 
 # Replace every `mlops-drift:local` reference (initContainers + main containers) at once.
-# EDIT newName to your registry path (Docker Hub: docker.io/<you>/mlops-drift).
+# Default = the multi-arch image the `image` workflow pushes to GHCR. Make the GHCR package
+# public once (Packages → mlops-drift → visibility) so the node pulls it without a secret.
 images:
   - name: mlops-drift:local
-    newName: docker.io/CHANGE_ME/mlops-drift
-    newTag: arm64
+    newName: ghcr.io/nanu1605/mlops-drift
+    newTag: latest
 
 # OCI block volumes have a 50Gi minimum; pin the StorageClass too.
 patches:
