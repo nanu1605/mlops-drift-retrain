@@ -1,0 +1,13 @@
+# Single RWO claim holds the whole working dir (/app): code seeded from the image plus the
+# mutable state — mlflow.db, mlartifacts/, data/serving/*.db, metrics/. RWO + single node means
+# every pod that mounts it lands together; that is the single-writer invariant the design needs.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlops-state
+  namespace: mlops
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi

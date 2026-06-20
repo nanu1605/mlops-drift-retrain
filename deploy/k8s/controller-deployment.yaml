@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: serving
+  name: controller
   namespace: mlops
-  labels: { app: serving }
+  labels: { app: controller }
 spec:
-  replicas: 1                 # single replica: model hot-reload + SQLite assume one writer
-  strategy: { type: Recreate }   # never two pods holding the model + request DB at once
+  replicas: 1
+  strategy: { type: Recreate }   # retrain writes mlflow.db — exactly one writer
   selector:
-    matchLabels: { app: serving }
+    matchLabels: { app: controller }
   template:
     metadata:
-      labels: { app: serving }
+      labels: { app: controller }
     spec:
       initContainers:
-        # Readiness only flips after the seed Job has registered the first @champion.
+        # Wait for the seeded champion so the first tick has something to evaluate.
         - name: wait-for-champion
           image: mlops-drift:local
           imagePullPolicy: IfNotPresent
@@ -29,26 +29,33 @@ spec:
               done
           volumeMounts: [{ name: state, mountPath: /app }]
       containers:
-        - name: serving
+        - name: controller
           image: mlops-drift:local
           imagePullPolicy: IfNotPresent
-          command: ["make", "up", "HOST=0.0.0.0"]
+          command: ["make", "loop"]
+          env:
+            - { name: SERVING_URL, value: "http://serving:8000" }
           ports:
-            - { containerPort: 8000, name: http }
-          readinessProbe:
-            httpGet: { path: /health, port: 8000 }
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet: { path: /health, port: 8000 }
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            failureThreshold: 6
+            - { containerPort: 9100, name: metrics }
           resources:
-            requests: { cpu: "250m", memory: "512Mi" }
-            limits: { cpu: "1", memory: "1Gi" }
+            requests: { cpu: "500m", memory: "1Gi" }   # retrain runs here, give it headroom
+            limits: { cpu: "2", memory: "2Gi" }
           volumeMounts: [{ name: state, mountPath: /app }]
       volumes:
         - name: state
           persistentVolumeClaim:
             claimName: mlops-state
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: controller
+  namespace: mlops
+  labels: { app: controller }
+spec:
+  selector: { app: controller }
+  ports:
+    - name: metrics     # named port the ServiceMonitor scrapes for drift/realized-F1
+      port: 9100
+      targetPort: 9100
+  type: ClusterIP

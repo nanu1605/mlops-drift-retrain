@@ -27,6 +27,11 @@ COPY configs ./configs
 COPY Makefile README.md ./
 RUN uv sync --frozen --no-dev
 
+# Pristine copy for k8s: a PVC mounted at /app shadows the baked code (k8s does not
+# auto-populate volumes like Docker does), so the seed Job's initContainer copies this
+# into the empty PVC once. Compose doesn't use it (Docker seeds named volumes from /app).
+RUN mkdir -p /opt/app && cp -a /app/. /opt/app/
+
 # Drift/realized-F1 (controller :9100) and serving counters (:8000) are the two scrape targets.
 EXPOSE 8000 9100
 
