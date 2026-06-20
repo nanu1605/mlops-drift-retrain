@@ -1,0 +1,76 @@
+{
+  "__comment": "Drift + realized-performance view over the controller :9100 monitor registry. Money-shot: realized_f1 dip -> promote -> recovery with monitor_model_version overlaid.",
+  "title": "Drift & Retrain",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Drift detected",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "OK", "color": "green" }, "1": { "text": "DRIFT", "color": "red" } } }
+          ],
+          "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+        }
+      },
+      "targets": [{ "expr": "drift_detected" }]
+    },
+    {
+      "id": 2,
+      "title": "Drift share",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 6, "y": 0 },
+      "targets": [{ "expr": "drift_share", "legendFormat": "share of drifted features" }]
+    },
+    {
+      "id": 3,
+      "title": "Features drifted",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [{ "expr": "drift_features_drifted" }]
+    },
+    {
+      "id": 4,
+      "title": "Realized F1 (per-batch) with champion version",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 18, "x": 0, "y": 6 },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "lineWidth": 2, "pointSize": 6 } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "champion version" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "custom.drawStyle", "value": "points" },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        { "expr": "realized_f1", "legendFormat": "realized F1" },
+        { "expr": "monitor_model_version", "legendFormat": "champion version" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Realized PR-AUC",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 6, "x": 18, "y": 6 },
+      "targets": [{ "expr": "realized_pr_auc", "legendFormat": "PR-AUC" }]
+    },
+    {
+      "id": 6,
+      "title": "Delayed labels arrived",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 16 },
+      "targets": [{ "expr": "realized_labels_arrived" }]
+    }
+  ]
+}

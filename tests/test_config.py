@@ -49,3 +49,13 @@ def test_missing_file_raises(tmp_path: Path):
 
 def test_config_type():
     assert isinstance(get_config(), Config)
+
+
+def test_serving_url_env_override(monkeypatch):
+    cfg = load_config()
+    # default: derived from host/port (0.0.0.0 -> localhost)
+    monkeypatch.delenv("SERVING_URL", raising=False)
+    assert cfg.serving_url == f"http://127.0.0.1:{cfg.serving.port}"
+    # override wins and trailing slash is trimmed
+    monkeypatch.setenv("SERVING_URL", "http://serving:8000/")
+    assert cfg.serving_url == "http://serving:8000"
