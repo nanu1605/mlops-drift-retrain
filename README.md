@@ -27,10 +27,11 @@ make up                      # serve the champion (uvicorn) on :8000
 make smoke                   # POST a sample → 200 + valid prediction
 make monitor                 # one-shot drift + realized-perf report
 make experiment              # full loop end-to-end → docs/images/drift_recovery.png
-make test                    # 52 tests
+make test                    # 54 tests
 ```
 
-No Docker/cluster needed — everything runs as local processes (see *Environment* below).
+No Docker/cluster needed for the quickstart — everything runs as local processes. The same
+code also runs containerized in Docker Compose and on minikube (see *Deploy* below).
 
 ## How it works
 
@@ -66,13 +67,33 @@ Python 3.12 · `uv` · scikit-learn · MLflow (tracking + registry, sqlite-backe
 FastAPI + uvicorn · prometheus-client · pandera · pydantic-settings · structlog · DVC · ruff ·
 pytest.
 
-## Environment (pure-local adaptations)
-This environment has no Docker/Kubernetes, so services run as **local processes** and a
-**synthetic** drift dataset stands in for real CICIDS2017 (auto-used if CSVs are dropped in
-`data/raw/`). The Kubernetes manifests, Dockerfile, Prometheus scrape config, Grafana dashboard
-(`deploy/`), and GitHub Actions workflows (`.github/`) are written as **deliverables but not
-executed here** — in a cluster the retrain would be a K8s Job and serving a Deployment. Every
-adaptation is recorded in [`CHANGELOG.md`](CHANGELOG.md).
+## Deploy
+The same image (one build, four entrypoints — train / serve / monitor / controller) runs the
+whole loop in containers. Full runbook: [`docs/deploy.md`](docs/deploy.md).
+
+**Docker Compose** — prove the loop locally:
+```bash
+cd deploy/docker
+docker compose up --build        # seed trains @champion, then serving + controller + prom + grafana
+curl localhost:8000/health       # 200
+docker compose exec controller make replay   # drive drift -> retrain -> promote -> reload
+# Grafana localhost:3000 (anon admin): "Drift & Retrain" -> realized_f1 dips then recovers
+```
+
+**Minikube** — the real target, monitored by kube-prometheus-stack:
+```bash
+eval $(minikube docker-env)
+docker build -f deploy/docker/serving.Dockerfile -t mlops-drift:local .
+helm install kps prometheus-community/kube-prometheus-stack -n monitoring --create-namespace \
+  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+kubectl apply -f deploy/k8s/        # ns, pvc, seed Job, serving, controller, ServiceMonitors, dashboards
+kubectl -n mlops wait --for=condition=complete job/seed-train --timeout=300s
+```
+Both serving (`:8000`) and the controller's monitor registry (`:9100`) are scraped via
+ServiceMonitors; the serving + drift dashboards are provisioned as labeled ConfigMaps.
+
+The drift dataset is **synthetic** (auto-swapped for real CICIDS2017 if CSVs are dropped in
+`data/raw/`). Any local-mode fallback is recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## What I learned
 Coming from a DevOps background, I expected the infrastructure side of this project to be
@@ -100,15 +121,18 @@ engineering looks like, and it's the part I'm most glad I invested in.
   data (optimistic) — the honest view is the per-batch realized-F1 series.
 - Realized F1 lags by the label delay in production (revealed immediately only for the plot).
 - Single SQLite writer + in-process model swap assume one serving worker.
+- **Single node only.** SQLite + in-process model swap + a ReadWriteOnce PVC mean exactly one
+  serving worker on one node — correct for this demo, not for scale. The scale-out path is
+  MLflow on Postgres + S3/MinIO, then serving goes `replicas: N` and retrain becomes a K8s Job.
 - **Future work:** real CICIDS2017 ingest; a disjoint future holdout for promotion; a feature
-  store; multi-worker serving with a shared model cache; deploy the K8s/Grafana stack;
-  concept-drift (not just covariate-drift) detection.
+  store; multi-worker serving with a shared model cache; concept-drift (not just covariate-drift)
+  detection.
 
 ## Layout
 ```
 src/mlops_drift/{data,training,serving,monitoring,promotion,controller,experiments,utils}
 configs/   config.yaml + thresholds.yaml      # all knobs
-deploy/    docker/ k8s/ prometheus/ grafana/  # deliverables (not deployed locally)
+deploy/    docker/ k8s/ prometheus/ grafana/  # compose + minikube stack (see docs/deploy.md)
 pipelines/ replay.py        experiments/ drift_experiment.md       docs/ architecture.md
-tests/     52 tests                           .github/workflows/    ci.yml + retrain.yml
+tests/     54 tests                           .github/workflows/    ci.yml + retrain.yml
 ```

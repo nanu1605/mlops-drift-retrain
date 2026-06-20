@@ -1,6 +1,5 @@
-# DELIVERABLE, NOT RUN here (no Prometheus server in this environment — spec §0.3).
-# Scrape config for the serving /metrics endpoint. In local mode, /metrics is still live
-# (curl it); this file documents how a Prometheus server would collect it.
+# Minimal single-target scrape for the local `make up` serving process. The container stacks
+# use their own configs: deploy/docker/prometheus.yml (compose) and ServiceMonitors on minikube.
 global:
   scrape_interval: 15s
 

@@ -1,5 +1,5 @@
 {
-  "__comment": "DELIVERABLE, NOT IMPORTED here (no Grafana in this environment — spec §0.3). Panels over the serving /metrics series.",
+  "__comment": "Serving panels over the /metrics series. Provisioned in compose and as a labeled ConfigMap on minikube.",
   "title": "Intrusion Serving",
   "schemaVersion": 39,
   "version": 1,
